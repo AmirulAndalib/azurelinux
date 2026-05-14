@@ -2,7 +2,7 @@
 Summary:        Cmake
 Name:           cmake
 Version:        3.30.3
-Release:        13%{?dist}
+Release:        14%{?dist}
 License:        BSD AND LGPLv2+
 Vendor:         Microsoft Corporation
 Distribution:   Azure Linux
@@ -69,6 +69,7 @@ operating system and in a compiler-independent manner.
 
 %prep
 %autosetup -p1
+rm -rf Utilities/cmcurl/*
 
 %build
 export JAVA_HOME="%{_libdir}/jvm/msopenjdk-17"
@@ -116,6 +117,9 @@ bin/ctest --force-new-ctest-process --rerun-failed --output-on-failure
 %{_libdir}/rpm/macros.d/macros.cmake
 
 %changelog
+* Thu May 14 2026 Kanishk Bansal <kanbansal@microsoft.com> - 3.30.3-14
+- triage cmake CVE CVE-2026-6429 by removing curl dir
+
 * Fri Mar 20 2026 Azure Linux Security Servicing Account <azurelinux-security@microsoft.com> - 3.30.3-13
 - Patch for CVE-2026-27135
 
