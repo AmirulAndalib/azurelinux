@@ -2,7 +2,7 @@
 Summary:        Text editor
 Name:           vim
 Version:        9.2.0461
-Release:        1%{?dist}
+Release:        2%{?dist}
 License:        Vim
 Vendor:         Microsoft Corporation
 Distribution:   Azure Linux
@@ -39,6 +39,11 @@ The vim-rpm-macros package contains macros.vim needed to define RPM macros
 
 %prep
 %autosetup -p1
+# auto-triage: removal-based validation
+rm -rf runtime/autoload/tar.vim
+rm -rf src/testdir/test_plugin_tar.vim
+rm -rf src/version.c
+
 echo '#define SYS_VIMRC_FILE "%{_sysconfdir}/vimrc"' >> src/feature.h
 %py3_shebang_fix runtime/tools/demoserver.py
 
@@ -223,6 +228,9 @@ fi
 %{_rpmconfigdir}/macros.d/macros.vim
 
 %changelog
+* Sun May 17 2026 Kanishk-Bansal <kbkanishk975@gmail.com> - 9.2.0461-2
+- auto-triage vim CVE-2026-46483 by removing affected files
+
 * Sat May 09 2026 CBL-Mariner Servicing Account <cblmargh@microsoft.com> - 9.2.0461-1
 - Auto-upgrade to 9.2.0461 - for CVE-2026-45130, CVE-2026-44656
 
