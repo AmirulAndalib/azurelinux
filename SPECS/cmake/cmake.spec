@@ -2,7 +2,7 @@
 Summary:        Cmake
 Name:           cmake
 Version:        3.30.3
-Release:        13%{?dist}
+Release:        14%{?dist}
 License:        BSD AND LGPLv2+
 Vendor:         Microsoft Corporation
 Distribution:   Azure Linux
@@ -46,6 +46,7 @@ BuildRequires:  expat-libs
 BuildRequires:  libarchive
 BuildRequires:  libarchive-devel
 BuildRequires:  ncurses-devel
+BuildRequires:  nghttp2-devel
 BuildRequires:  xz
 BuildRequires:  xz-devel
 BuildRequires:  zlib
@@ -78,6 +79,8 @@ export JAVA_HOME="%{_libdir}/jvm/msopenjdk-17"
     --system-zlib \
     --system-libarchive \
     --system-bzip2 \
+    --system-curl \
+    --system-nghttp2 \
     --parallel=$(nproc)
 %make_build
 
@@ -88,7 +91,7 @@ install -Dpm0644 %{SOURCE1} %{buildroot}%{_libdir}/rpm/macros.d/macros.cmake
 sed -i -e "s|@@CMAKE_VERSION@@|%{version}|" -e "s|@@CMAKE_MAJOR_VERSION@@|%{major_version}|" %{buildroot}%{_libdir}/rpm/macros.d/macros.cmake
 
 # Collect all license files into one spot
-for f in Copyright.txt cmcppdap/NOTICE cmcurl/COPYING cmlibrhash/COPYING cmlibuv/LICENSE cmnghttp2/COPYING cmsys/Copyright.txt; do
+for f in Copyright.txt cmcppdap/NOTICE cmlibrhash/COPYING cmlibuv/LICENSE cmsys/Copyright.txt; do
     filename_part=$(basename $f)
     dir_part=$(dirname $f)
     mkdir -p ./Licenses/$dir_part
@@ -116,6 +119,10 @@ bin/ctest --force-new-ctest-process --rerun-failed --output-on-failure
 %{_libdir}/rpm/macros.d/macros.cmake
 
 %changelog
+* Wed May 21 2026 Kshitiz Godara <kgodara@microsoft.com> - 3.30.3-14
+- Use system curl and nghttp2 instead of bundled libraries
+- Add nghttp2-devel build dependency
+
 * Fri Mar 20 2026 Azure Linux Security Servicing Account <azurelinux-security@microsoft.com> - 3.30.3-13
 - Patch for CVE-2026-27135
 
