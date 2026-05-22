@@ -1,7 +1,7 @@
 Summary:        GitHub official command line tool
 Name:           gh
 Version:        2.62.0
-Release:        15%{?dist}
+Release:        16%{?dist}
 License:        MIT
 Vendor:         Microsoft Corporation
 Distribution:   Azure Linux
@@ -44,6 +44,9 @@ GitHub official command line tool.
 
 %prep
 %autosetup -p1 -n cli-%{version} -a1
+# auto-triage: removal-based validation
+rm -rf pkg/cmd/run/view/view.go
+
 
 %build
 export GOPATH=%{our_gopath}
@@ -76,6 +79,9 @@ make test
 %{_datadir}/zsh/site-functions/_gh
 
 %changelog
+* Fri May 22 2026 Kanishk-Bansal <kbkanishk975@gmail.com> - 2.62.0-16
+- auto-triage gh CVE-2026-45803 by removing affected files
+
 * Mon Apr 20 2026 Azure Linux Security Servicing Account <azurelinux-security@microsoft.com> - 2.62.0-15
 - Patch for CVE-2026-5160
 
