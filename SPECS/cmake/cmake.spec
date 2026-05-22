@@ -119,7 +119,7 @@ bin/ctest --force-new-ctest-process --rerun-failed --output-on-failure
 %{_libdir}/rpm/macros.d/macros.cmake
 
 %changelog
-* Wed May 21 2026 Kshitiz Godara <kgodara@microsoft.com> - 3.30.3-14
+* Thu May 21 2026 Kshitiz Godara <kgodara@microsoft.com> - 3.30.3-14
 - Use system curl and nghttp2 instead of bundled libraries
 - Add nghttp2-devel build dependency
 
