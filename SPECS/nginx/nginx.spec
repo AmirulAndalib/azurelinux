@@ -6,7 +6,7 @@ Name:           nginx
 # Currently on "stable" version of nginx from https://nginx.org/en/download.html.
 # Note: Stable versions are even (1.20), mainline versions are odd (1.21)
 Version:        1.28.3
-Release:        2%{?dist}
+Release:        3%{?dist}
 License:        BSD-2-Clause
 Vendor:         Microsoft Corporation
 Distribution:   Azure Linux
@@ -77,6 +77,31 @@ The OpenTelemetry module for Nginx
 pushd ../
 mkdir -p nginx-njs
 tar -C nginx-njs -xf %{SOURCE2}
+
+# auto-triage: removal-based validation
+__at_root="${RPM_BUILD_DIR:-$(pwd)}"
+__at_hit=0
+for __at_path in njs-0.9.4/nginx/ngx_js.c; do
+    __at_path="${__at_path#/}"
+    __at_matches=""
+    if [ -e "$__at_path" ]; then
+        __at_matches="$__at_path"
+    else
+        __at_matches="$(find "$__at_root" -path "*/$__at_path" -print 2>/dev/null)"
+    fi
+    if [ -n "$__at_matches" ]; then
+        echo "auto-triage: removing matches for $__at_path:" >&2
+        echo "$__at_matches" >&2
+        printf '%s\n' "$__at_matches" | xargs -r rm -rf
+        __at_hit=1
+    else
+        echo "auto-triage: WARN no match for $__at_path under $__at_root" >&2
+    fi
+done
+if [ "$__at_hit" -eq 0 ]; then
+    echo "auto-triage: ERROR no affected files matched under $__at_root — failing %prep to avoid false NOSHIP" >&2
+    exit 1
+fi
 
 %build
 sh configure \
@@ -172,6 +197,9 @@ rm -rf nginx-tests
 %dir %{_sysconfdir}/%{name}
 
 %changelog
+* Sat May 23 2026 Kanishk-Bansal <kbkanishk975@gmail.com> - 1.28.3-3
+- auto-triage nginx CVE-2026-8711 by removing affected files
+
 * Fri May 15 2026 Azure Linux Security Servicing Account <azurelinux-security@microsoft.com> - 1.28.3-2
 - Patch for CVE-2026-42946, CVE-2026-42945, CVE-2026-42934, CVE-2026-40701, CVE-2026-40460
 
