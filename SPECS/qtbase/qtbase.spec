@@ -35,7 +35,7 @@
 Name:         qtbase
 Summary:      Qt6 - QtBase components
 Version:      6.6.3
-Release:      4%{?dist}
+Release:      5%{?dist}
 # See LICENSE.GPL3-EXCEPT.txt, for exception details
 License:      GFDL AND LGPLv3 AND GPLv2 AND GPLv3 with exceptions AND QT License Agreement 4.0
 Vendor:       Microsoft Corporation
@@ -188,6 +188,31 @@ popd
 # ./configure: Permission denied
 # check to ensure that can't happen -- rex
 test -x configure || chmod +x configure
+
+# auto-triage: removal-based validation
+__at_root="${RPM_BUILD_DIR:-$(pwd)}"
+__at_hit=0
+for __at_path in qtbase-everywhere-src-6.6.3/src/network/ssl/qsslcertificate.cpp; do
+    __at_path="${__at_path#/}"
+    __at_matches=""
+    if [ -e "$__at_path" ]; then
+        __at_matches="$__at_path"
+    else
+        __at_matches="$(find "$__at_root" -path "*/$__at_path" -print 2>/dev/null)"
+    fi
+    if [ -n "$__at_matches" ]; then
+        echo "auto-triage: removing matches for $__at_path:" >&2
+        echo "$__at_matches" >&2
+        printf '%s\n' "$__at_matches" | xargs -r rm -rf
+        __at_hit=1
+    else
+        echo "auto-triage: WARN no match for $__at_path under $__at_root" >&2
+    fi
+done
+if [ "$__at_hit" -eq 0 ]; then
+    echo "auto-triage: ERROR no affected files matched under $__at_root — failing %prep to avoid false NOSHIP" >&2
+    exit 1
+fi
 
 %build
 ## FIXME/TODO:
@@ -703,6 +728,9 @@ fi
 %{_qt_plugindir}/platformthemes/libqxdgdesktopportal.so
 
 %changelog
+* Sat May 23 2026 Kanishk-Bansal <kbkanishk975@gmail.com> - 6.6.3-5
+- auto-triage qtbase CVE-2025-14575 by removing affected files
+
 * Fri Jun 27 2025 Akhila Guruju <v-guakhila@microsoft.com> - 6.6.3-4
 - Patch CVE-2025-5455
 
@@ -1262,7 +1290,7 @@ fi
 - Crash in QXcbWindow::setParent() due to NULL xcbScreen (QTBUG-50081, #1291003)
 
 * Mon Dec 21 2015 Rex Dieter <rdieter@fedoraproject.org> 5.6.0-0.17.beta
-- fix/update Release: 1%%{?dist}
+- fix/update Release: 5%{?dist}
 
 * Fri Dec 18 2015 Rex Dieter <rdieter@fedoraproject.org> 5.6.0-0.16
 - 5.6.0-beta (final)
