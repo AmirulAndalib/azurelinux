@@ -1,4 +1,5 @@
 [components.grub2]
+test_labels = ["boot_integration", "uefi_compatibility", "secure_boot_validation"]
 
 # Disable Xen module builds — not applicable to Azure Linux (Hyper-V/KVM).
 # grub.macros enables with_xen_arch and with_xen_pvh_arch on x86_64 by default,

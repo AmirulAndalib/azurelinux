@@ -47,6 +47,15 @@ container = false
 systemd = true
 runtime-package-management = true
 
+[images.vm-base.test-workflows]
+# Test labels selected per validation tier. Labels are declared in
+# base/tests/framework-labels.toml. Capability gating is applied by the
+# resolver: labels whose `requires_capabilities` are not satisfied by
+# this image's `[images.vm-base.capabilities]` block are skipped.
+pr_validation      = ["openqa_install_smoke", "tmt_tier0", "lisa_priority0", "lisa_smoke"]
+nightly_validation = ["lisa_priority1", "lisa_priority2", "lisa_ltp", "lisa_xfs", "lisa_perf"]
+release_validation = ["tmt_tier2", "lisa_priority2", "openqa_install_comprehensive", "security_tests", "compatibility_tests"]
+
 [images.vm-base-dev]
 description = "VM Base Image (dev)"
 definition = { type = "kiwi", path = "vm-base/vm-base.kiwi", profile = "vm-base-dev" }
@@ -65,6 +74,11 @@ container = false
 systemd = true
 runtime-package-management = true
 
+[images.vm-base-dev.test-workflows]
+pr_validation      = ["openqa_install_smoke", "tmt_tier0", "lisa_priority0", "lisa_smoke"]
+nightly_validation = ["lisa_priority1", "lisa_priority2", "lisa_ltp", "lisa_xfs", "lisa_perf"]
+release_validation = ["tmt_tier2", "lisa_priority2", "openqa_install_comprehensive", "security_tests", "compatibility_tests"]
+
 # ---- container-base (core profile) -------------------------------------
 [images.container-base]
 description = "Container Base Image"
@@ -80,6 +94,11 @@ container = true
 systemd = false
 runtime-package-management = true
 
+[images.container-base.test-workflows]
+pr_validation      = ["container_smoke", "base_container_validation", "pytest_container_static"]
+nightly_validation = ["container_runtime_full", "oci_compliance", "registry_integration", "pytest_container_static", "pytest_container_runtime"]
+release_validation = ["container_security_scan", "oci_security", "distroless_validation", "pytest_container_release"]
+
 [images.container-base-dev]
 description = "Container Base Image (dev)"
 definition = { type = "kiwi", path = "container-base/container-base.kiwi", profile = "core-dev" }
@@ -94,6 +113,11 @@ container = true
 systemd = false
 runtime-package-management = true
 
+[images.container-base-dev.test-workflows]
+pr_validation      = ["container_smoke", "base_container_validation", "pytest_container_static"]
+nightly_validation = ["container_runtime_full", "oci_compliance", "registry_integration", "pytest_container_static", "pytest_container_runtime"]
+release_validation = ["container_security_scan", "oci_security", "distroless_validation", "pytest_container_release"]
+
 # ---- distroless containers (single-variant only) -----------------------
 # No -dev sibling: with a single build-time repo and no runtime package
 # management, a -dev distroless build would be byte-identical.
@@ -102,13 +126,22 @@ runtime-package-management = true
 description = "Container Distroless Minimal Image"
 definition = { type = "kiwi", path = "container-base/container-base.kiwi", profile = "distroless-minimal" }
 
+[images.container-distroless-minimal.test-workflows]
+release_validation = ["minimal_surface_tests", "security_surface", "static_analysis"]
+
 [images.container-distroless-base]
 description = "Container Distroless Base Image"
 definition = { type = "kiwi", path = "container-base/container-base.kiwi", profile = "distroless-base" }
 
+[images.container-distroless-base.test-workflows]
+release_validation = ["minimal_surface_tests", "distroless_validation", "static_analysis"]
+
 [images.container-distroless-debug]
 description = "Container Distroless Debug Image"
 definition = { type = "kiwi", path = "container-base/container-base.kiwi", profile = "distroless-debug" }
+
+[images.container-distroless-debug.test-workflows]
+release_validation = ["minimal_surface_tests", "distroless_validation", "static_analysis"]
 
 # ---- wsl ---------------------------------------------------------------
 

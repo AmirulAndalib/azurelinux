@@ -1,0 +1,400 @@
+# Azure Linux Framework Labels Catalog
+#
+# Declares the test labels referenced by:
+#   - base/images/images.toml   ([images.<name>.test-workflows] tier maps)
+#   - base/comps/components.toml ([components.<name>] `test_labels`)
+#
+# A label is a named, reusable test-selection record. Each label maps to
+# a framework-native filter (`fmf_filter` / `lisa_criteria` /
+# `openqa_suites` / `pytest_markers`) or is `pending = true` and emits
+# no filter.
+#
+# Execution policy lives on the label, not on the gate:
+#   retry_count  — integer; retries-on-failure for this label's runner
+#   timeout_min  — integer; per-label wall-clock ceiling in minutes
+#
+# Capability tokens used by `requires_capabilities` here are produced by
+# image definitions in base/images/images.toml (one bool per capability
+# under each `[images.<name>.capabilities]` table).
+#
+# Ownership
+# ---------
+#   - This file is owned by the Azure Linux team and lives in this repo
+#     so test selection is reviewable here.
+#   - azldev consumes this file as a generic resolver — it does NOT
+#     hard-code label semantics in Go.
+#   - The resolver dispatches on which filter field is present, not on
+#     the label name. Prefixes (tmt_, lisa_, ...) are descriptive only.
+
+[metadata]
+version = "1.0.0"
+schema_version = 1
+author = "Azure Linux Team"
+description = "Azure Linux framework label catalog"
+
+# =============================================================================
+# Framework enablement
+#
+# Distro-wide kill switch for label dispatch. A label whose framework is
+# disabled here is skipped (with a clear reason in --format explain) and
+# its filter is not emitted.
+#
+# Defaults to enabled if a framework is not listed.
+# =============================================================================
+
+[frameworks]
+tmt    = { enabled = false }
+lisa   = { enabled = true }
+openqa = { enabled = false }
+pytest = { enabled = true }
+image  = { enabled = true }
+
+# =============================================================================
+# TMT labels (Test Management Tool / fmf filter syntax)
+# =============================================================================
+
+[tmt_labels.tmt_tier0]
+description = "TMT smoke tier — fastest, most critical"
+type = "tmt"
+fmf_filter = "tier:0"
+estimated_minutes = 15
+retry_count = 2
+timeout_min = 30
+
+[tmt_labels.tmt_tier1]
+description = "TMT integration tier — medium coverage"
+type = "tmt"
+fmf_filter = "tier:1"
+estimated_minutes = 45
+retry_count = 1
+timeout_min = 90
+
+[tmt_labels.tmt_tier2]
+description = "TMT full tier — comprehensive"
+type = "tmt"
+fmf_filter = "tier:2"
+estimated_minutes = 120
+retry_count = 1
+timeout_min = 240
+
+
+# =============================================================================
+# LISA labels (Linux Integration Services Automation)
+# =============================================================================
+
+[lisa_labels.lisa_priority0]
+description = "LISA PR-gate priority — critical path"
+type = "lisa"
+lisa_criteria = { priority = [0] }
+estimated_minutes = 20
+retry_count = 2
+timeout_min = 40
+
+[lisa_labels.lisa_smoke]
+description = "LISA smoke test — fastest PR gate"
+type = "lisa"
+lisa_criteria = { testcaseNames = ["smoke_test"] }
+estimated_minutes = 10
+retry_count = 2
+timeout_min = 20
+
+[lisa_labels.lisa_priority1]
+description = "LISA important functional tests"
+type = "lisa"
+lisa_criteria = { priority = [1] }
+estimated_minutes = 60
+retry_count = 1
+timeout_min = 120
+
+[lisa_labels.lisa_priority2]
+description = "LISA extended coverage"
+type = "lisa"
+lisa_criteria = { priority = [2] }
+estimated_minutes = 180
+retry_count = 1
+timeout_min = 360
+
+[lisa_labels.lisa_ltp]
+description = "LISA kernel LTP (Linux Test Project) suite"
+type = "lisa"
+lisa_criteria = { testcaseNames = ["verify_ltp_lite"] }
+estimated_minutes = 90
+retry_count = 1
+timeout_min = 180
+
+[lisa_labels.lisa_xfs]
+description = "LISA XFS data-disk tests (standard + NVMe)"
+type = "lisa"
+lisa_criteria = { testcaseNames = ["verify_xfs_standard_datadisk", "verify_xfs_nvme_datadisk"] }
+requires_capabilities = ["storage"]
+estimated_minutes = 60
+retry_count = 1
+timeout_min = 120
+
+[lisa_labels.lisa_perf]
+description = "LISA performance test areas (network, nested, nvme, perf_tool, storage)"
+type = "lisa"
+lisa_criteria = { criteria = [
+  { area = "network",   category = "performance" },
+  { area = "nested",    category = "performance" },
+  { area = "nvme",      category = "performance" },
+  { area = "perf_tool", category = "performance" },
+  { area = "storage",   category = "performance" },
+] }
+estimated_minutes = 240
+retry_count = 1
+timeout_min = 480
+
+
+# =============================================================================
+# OpenQA labels (suite-list selection)
+# =============================================================================
+
+[openqa_labels.openqa_install_smoke]
+description = "OpenQA basic installation validation"
+type = "openqa"
+openqa_suites = ["install_default", "install_package_set_minimal"]
+estimated_minutes = 30
+retry_count = 2
+timeout_min = 60
+
+[openqa_labels.openqa_install_comprehensive]
+description = "OpenQA full installation matrix"
+type = "openqa"
+openqa_suites = [
+    "install_default",
+    "install_delete_pata",
+    "install_sata",
+    "install_multi",
+    "install_software_raid",
+    "install_lvmthin",
+]
+estimated_minutes = 120
+retry_count = 1
+timeout_min = 240
+
+
+# =============================================================================
+# pytest labels (in-tree, filesystem-based image tests)
+#
+# Pytest labels target image tests that live under base/images/tests/cases/
+# and are dispatched via `pytest`. Each label declares:
+#   - `pytest_markers`  : -m expressions to select tests
+#   - `pytest_files`    : optional path globs to limit collection
+#   - `pytest_args`     : optional extra args passed verbatim
+#
+# The resolver groups all pytest labels in a workflow into a single
+# combined invocation (union of markers/files, ordered args) so the
+# runner can fire one pytest process per workflow.
+# =============================================================================
+
+[pytest_labels.pytest_container_static]
+description = "Static container validation (image-tree pytest)"
+type = "pytest"
+pytest_markers = ["static_container_test"]
+pytest_files = ["cases/**/*.py"]
+requires_capabilities = ["container"]
+estimated_minutes = 25
+retry_count = 2
+timeout_min = 50
+
+[pytest_labels.pytest_container_runtime]
+description = "Runtime container behavior (image-tree pytest)"
+type = "pytest"
+pytest_markers = ["runtime_container_tests"]
+pytest_files = ["cases/**/*.py"]
+requires_capabilities = ["container"]
+estimated_minutes = 45
+retry_count = 1
+timeout_min = 90
+
+[pytest_labels.pytest_vm_basic]
+description = "In-VM pytest smoke tests"
+type = "pytest"
+pytest_markers = ["vm_basic"]
+pytest_files = ["cases/**/*.py"]
+requires_capabilities = ["machine-bootable"]
+estimated_minutes = 30
+retry_count = 2
+timeout_min = 60
+
+[pytest_labels.pytest_container_release]
+description = "Release-gate container pytest with coverage collection"
+type = "pytest"
+pytest_markers = ["static_container_test"]
+pytest_files = ["cases/**/*.py"]
+pytest_args = [
+    "--strict-markers",
+    "--durations=20",
+    "--cov=base/images/tests/cases",
+    "--cov-report=term-missing",
+]
+requires_capabilities = ["container"]
+estimated_minutes = 60
+retry_count = 1
+timeout_min = 120
+
+
+
+# Each label is `pending = true` until a concrete framework binding (pytest
+# marker, lisa criteria, etc.) is provided.
+[image_labels]
+vm_smoke                  = { description = "Lightweight VM smoke validation", requires_capabilities = ["machine-bootable"], estimated_minutes = 20, pending = true }
+vm_basic_tests            = { description = "Basic VM functional coverage", requires_capabilities = ["machine-bootable"], estimated_minutes = 40, pending = true }
+container_smoke           = { description = "Lightweight container smoke validation", requires_capabilities = ["container"], estimated_minutes = 15, pending = true }
+base_container_validation = { description = "Base-image container validation", requires_capabilities = ["container"], estimated_minutes = 25, pending = true }
+distroless_validation     = { description = "Distroless / minimal image validation", requires_capabilities = ["container"], estimated_minutes = 30, pending = true }
+minimal_surface_tests     = { description = "Validation of minimal image surface", estimated_minutes = 20, pending = true }
+oci_compliance            = { description = "OCI specification compliance", requires_capabilities = ["container"], estimated_minutes = 25, pending = true }
+oci_security              = { description = "OCI security validation", requires_capabilities = ["container"], estimated_minutes = 30, pending = true }
+registry_integration      = { description = "Container registry integration", requires_capabilities = ["container"], estimated_minutes = 20, pending = true }
+container_security_scan   = { description = "Container security scanning", requires_capabilities = ["container"], estimated_minutes = 40, pending = true }
+
+# =============================================================================
+# Component dynamic labels
+#
+# Referenced from `test_labels = [...]` on individual
+# `[components.<name>]` entries in base/comps/components.toml. All are
+# currently `pending = true` — the references are aspirational metadata.
+# Concrete filters should be added incrementally as each component's
+# dynamic test infrastructure lands.
+# =============================================================================
+
+[component_labels]
+# Kernel & boot
+kmod_load                     = { description = "Kernel module load/unload",               pending = true }
+kernel_integration            = { description = "Kernel runtime integration",              pending = true }
+boot_validation               = { description = "Boot path validation",                    pending = true }
+boot_integration              = { description = "Boot process integration",                pending = true }
+syscall_tests                 = { description = "Syscall surface validation",              pending = true }
+uefi_compatibility            = { description = "UEFI compatibility",                      pending = true }
+secure_boot_validation        = { description = "Secure boot validation",                  pending = true }
+firmware_loading              = { description = "Firmware loading",                        pending = true }
+hardware_compatibility        = { description = "Hardware compatibility",                  pending = true }
+microcode_update              = { description = "Microcode update flow",                   pending = true }
+
+# System services
+systemd_lifecycle             = { description = "systemd lifecycle",                       pending = true }
+systemd_integration           = { description = "systemd integration",                     pending = true }
+service_management            = { description = "Service management",                      pending = true }
+service_lifecycle             = { description = "Service lifecycle",                       pending = true }
+journal_validation            = { description = "journald validation",                     pending = true }
+network_service_integration   = { description = "Network service integration",             pending = true }
+connectivity_validation       = { description = "Connectivity validation",                 pending = true }
+selinux_enforcement           = { description = "SELinux enforcement",                     pending = true }
+tpm_functionality             = { description = "TPM functionality",                       pending = true }
+crypto_operations             = { description = "Crypto operations",                       pending = true }
+security_integration          = { description = "Security stack integration",              pending = true }
+storage_integration           = { description = "Storage integration",                     pending = true }
+filesystem_operations         = { description = "Filesystem operations",                   pending = true }
+device_management             = { description = "Device management",                       pending = true }
+
+# Toolchains & languages
+compiler_runtime_tests        = { description = "Compiler runtime tests",                  pending = true }
+cross_compile_validation      = { description = "Cross-compilation validation",            pending = true }
+glibc_functionality           = { description = "glibc functionality",                     pending = true }
+python_runtime_tests          = { description = "Python runtime tests",                    pending = true }
+python_module_integration     = { description = "Python module integration",               pending = true }
+python_package_functionality  = { description = "Python package functionality",            pending = true }
+rust_runtime_tests            = { description = "Rust runtime tests",                      pending = true }
+rust_integration              = { description = "Rust integration",                        pending = true }
+rust_performance              = { description = "Rust performance",                        pending = true }
+cargo_test                    = { description = "Cargo test execution",                    pending = true }
+go_test                       = { description = "Go test execution",                       pending = true }
+go_integration                = { description = "Go integration",                          pending = true }
+go_performance                = { description = "Go performance",                          pending = true }
+go_race_detection             = { description = "Go race detection",                       pending = true }
+nodejs_runtime_tests          = { description = "Node.js runtime tests",                   pending = true }
+nodejs_performance            = { description = "Node.js performance",                     pending = true }
+npm_integration               = { description = "npm integration",                         pending = true }
+java_runtime_tests            = { description = "Java runtime tests",                      pending = true }
+java_application_tests        = { description = "Java application tests",                  pending = true }
+maven_integration             = { description = "Maven integration",                       pending = true }
+
+# Container & virtualization
+container_lifecycle           = { description = "Container lifecycle",                     pending = true }
+container_networking          = { description = "Container networking",                    pending = true }
+container_security            = { description = "Container security",                      pending = true }
+oci_runtime_tests             = { description = "OCI runtime tests",                       pending = true }
+vm_lifecycle                  = { description = "VM lifecycle",                            pending = true }
+vm_migration                  = { description = "VM migration",                            pending = true }
+libvirt_integration           = { description = "libvirt integration",                     pending = true }
+hypervisor_performance        = { description = "Hypervisor performance",                  pending = true }
+
+# Databases & data
+mariadb_functionality         = { description = "MariaDB functionality",                   pending = true }
+mariadb_replication           = { description = "MariaDB replication",                     pending = true }
+mysql_functionality           = { description = "MySQL functionality",                     pending = true }
+mysql_clustering              = { description = "MySQL clustering",                        pending = true }
+mysql_performance             = { description = "MySQL performance",                       pending = true }
+postgresql_integration        = { description = "PostgreSQL integration",                  pending = true }
+postgresql_extension_tests    = { description = "PostgreSQL extension tests",              pending = true }
+database_performance          = { description = "Database performance",                    pending = true }
+
+# Networking & protocols
+network_integration           = { description = "Network integration",                     pending = true }
+network_performance           = { description = "Network performance",                     pending = true }
+network_protocol_tests        = { description = "Network protocol tests",                  pending = true }
+network_tool_functionality    = { description = "Network tool functionality",              pending = true }
+protocol_tests                = { description = "Protocol tests",                          pending = true }
+http_load_tests               = { description = "HTTP load tests",                         pending = true }
+web_server_functionality      = { description = "Web server functionality",                pending = true }
+web_performance               = { description = "Web performance",                         pending = true }
+
+# Security & auth
+auth_integration              = { description = "Authentication integration",              pending = true }
+kerberos_functionality        = { description = "Kerberos functionality",                  pending = true }
+ldap_operations               = { description = "LDAP operations",                         pending = true }
+crypto_functionality          = { description = "Crypto functionality",                    pending = true }
+encryption_tests              = { description = "Encryption tests",                        pending = true }
+compliance_validation         = { description = "Compliance validation",                   pending = true }
+security_monitoring           = { description = "Security monitoring",                     pending = true }
+
+# Filesystem & storage
+fs_integrity_tests            = { description = "Filesystem integrity tests",              pending = true }
+fs_performance                = { description = "Filesystem performance",                  pending = true }
+archive_operations            = { description = "Archive operations",                      pending = true }
+compression_performance       = { description = "Compression performance",                 pending = true }
+backup_functionality          = { description = "Backup functionality",                    pending = true }
+
+# Build & dev tools
+build_system_tests            = { description = "Build system tests",                      pending = true }
+build_performance             = { description = "Build performance",                       pending = true }
+cross_platform_build          = { description = "Cross-platform build",                    pending = true }
+debugger_functionality        = { description = "Debugger functionality",                  pending = true }
+profiler_tests                = { description = "Profiler tests",                          pending = true }
+symbol_resolution             = { description = "Symbol resolution",                       pending = true }
+library_integration           = { description = "Library integration",                     pending = true }
+library_runtime_tests         = { description = "Library runtime tests",                   pending = true }
+package_operations            = { description = "Package operations",                      pending = true }
+package_dependency_resolution = { description = "Package dependency resolution",           pending = true }
+repository_management         = { description = "Repository management",                   pending = true }
+vcs_operations                = { description = "VCS operations",                          pending = true }
+vcs_integration               = { description = "VCS integration",                         pending = true }
+vcs_performance               = { description = "VCS performance",                         pending = true }
+test_execution                = { description = "Test execution",                          pending = true }
+test_framework_integration    = { description = "Test framework integration",              pending = true }
+test_reporting                = { description = "Test reporting",                          pending = true }
+monitoring_functionality      = { description = "Monitoring functionality",                pending = true }
+log_processing                = { description = "Log processing",                          pending = true }
+performance_tuning            = { description = "Performance tuning",                      pending = true }
+
+# Desktop / GUI / multimedia
+gui_interaction               = { description = "GUI interaction",                         pending = true }
+gui_rendering                 = { description = "GUI rendering",                           pending = true }
+gui_performance               = { description = "GUI performance",                         pending = true }
+graphics_rendering            = { description = "Graphics rendering",                      pending = true }
+graphics_performance          = { description = "Graphics performance",                    pending = true }
+font_rendering                = { description = "Font rendering",                          pending = true }
+multimedia_playback           = { description = "Multimedia playback",                     pending = true }
+multimedia_processing         = { description = "Multimedia processing",                   pending = true }
+multimedia_performance        = { description = "Multimedia performance",                  pending = true }
+audio_processing              = { description = "Audio processing",                        pending = true }
+text_editor_functionality     = { description = "Text editor functionality",               pending = true }
+text_processing               = { description = "Text processing",                         pending = true }
+text_processing_functionality = { description = "Text processing functionality",           pending = true }
+file_manager_tests            = { description = "File manager tests",                      pending = true }
+spell_check_tests             = { description = "Spell check tests",                       pending = true }
+productivity_integration      = { description = "Productivity integration",                pending = true }
+language_processing           = { description = "Language processing",                     pending = true }
+internationalization_tests    = { description = "Internationalization tests",              pending = true }
