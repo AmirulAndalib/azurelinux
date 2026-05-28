@@ -4415,7 +4415,6 @@ includes = ["**/*.comp.toml", "component-check-disablement.toml", "component-min
 [components.qca]
 [components.qcoro]
 [components.qcustomplot]
-[components.qdbm]
 [components.qdox]
 [components.qhull]
 [components.qjson]
