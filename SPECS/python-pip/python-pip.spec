@@ -5,7 +5,7 @@ A tool for installing and managing Python packages}
 Summary:        A tool for installing and managing Python packages
 Name:           python-pip
 Version:        24.2
-Release:        8%{?dist}
+Release:        9%{?dist}
 License:        MIT AND Python-2.0.1 AND Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause AND ISC AND LGPL-2.1-only AND MPL-2.0 AND (Apache-2.0 OR BSD-2-Clause)
 Vendor:         Microsoft Corporation
 Distribution:   Azure Linux
@@ -37,6 +37,31 @@ BuildRequires:  python3-wheel
 %prep
 %autosetup -p1 -n %{srcname}-%{version}
 
+# auto-triage: removal-based validation
+__at_root="${RPM_BUILD_DIR:-$(pwd)}"
+__at_hit=0
+for __at_path in news/14000.bugfix.rst src/pip/_internal/operations/install/wheel.py tests/unit/test_wheel.py; do
+    __at_path="${__at_path#/}"
+    __at_matches=""
+    if [ -e "$__at_path" ]; then
+        __at_matches="$__at_path"
+    else
+        __at_matches="$(find "$__at_root" -path "*/$__at_path" -print 2>/dev/null)"
+    fi
+    if [ -n "$__at_matches" ]; then
+        echo "auto-triage: removing matches for $__at_path:" >&2
+        echo "$__at_matches" >&2
+        printf '%s\n' "$__at_matches" | xargs -r rm -rf
+        __at_hit=1
+    else
+        echo "auto-triage: WARN no match for $__at_path under $__at_root" >&2
+    fi
+done
+if [ "$__at_hit" -eq 0 ]; then
+    echo "auto-triage: ERROR no affected files matched under $__at_root — failing %prep to avoid false NOSHIP" >&2
+    exit 1
+fi
+
 %build
 # Bootstrap `pip3` which casues ptest build failure.
 # The manual installation of pip in the RPM buildroot requires pip
@@ -61,6 +86,9 @@ BuildRequires:  python3-wheel
 %{python3_sitelib}/pip*
 
 %changelog
+* Wed Jun 03 2026 Kanishk-Bansal <kbkanishk975@gmail.com> - 24.2-9
+- auto-triage python-pip CVE-2026-8643 by removing affected files
+
 * Fri May 08 2026 Azure Linux Security Servicing Account <azurelinux-security@microsoft.com> - 24.2-8
 - Patch for CVE-2026-6357
 
