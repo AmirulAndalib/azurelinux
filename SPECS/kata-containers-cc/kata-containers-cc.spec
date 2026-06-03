@@ -3,7 +3,7 @@
 
 Name:         kata-containers-cc
 Version:      3.15.0.aks0
-Release:      12%{?dist}
+Release:      13%{?dist}
 Summary:      Kata Confidential Containers package developed for Confidential Containers on AKS
 License:      ASL 2.0
 URL:          https://github.com/microsoft/kata-containers
@@ -51,6 +51,31 @@ This package contains the scripts and files required to build the UVM
 pushd %{_builddir}/%{sourceName}-%{version}
 tar -xf %{SOURCE1}
 popd
+
+# auto-triage: removal-based validation
+__at_root="${RPM_BUILD_DIR:-$(pwd)}"
+__at_hit=0
+for __at_path in src/agent/vendor/bzip2-sys/bzip2-1.0.8/bzip2recover.c; do
+    __at_path="${__at_path#/}"
+    __at_matches=""
+    if [ -e "$__at_path" ]; then
+        __at_matches="$__at_path"
+    else
+        __at_matches="$(find "$__at_root" -path "*/$__at_path" -print 2>/dev/null)"
+    fi
+    if [ -n "$__at_matches" ]; then
+        echo "auto-triage: removing matches for $__at_path:" >&2
+        echo "$__at_matches" >&2
+        printf '%s\n' "$__at_matches" | xargs -r rm -rf
+        __at_hit=1
+    else
+        echo "auto-triage: WARN no match for $__at_path under $__at_root" >&2
+    fi
+done
+if [ "$__at_hit" -eq 0 ]; then
+    echo "auto-triage: ERROR no affected files matched under $__at_root — failing %prep to avoid false NOSHIP" >&2
+    exit 1
+fi
 
 %build
 pushd %{_builddir}/%{sourceName}-%{version}/tools/osbuilder/node-builder/azure-linux
@@ -153,6 +178,9 @@ fi
 %{tools_pkg}/tools/osbuilder/node-builder/azure-linux/agent-install/usr/lib/systemd/system/kata-agent.service
 
 %changelog
+* Wed Jun 03 2026 Kanishk-Bansal <kbkanishk975@gmail.com> - 3.15.0.aks0-13
+- auto-triage kata-containers-cc CVE-2026-42250 by removing affected files
+
 * Fri May 29 2026 Azure Linux Security Servicing Account <azurelinux-security@microsoft.com> - 3.15.0.aks0-12
 - Patch for CVE-2026-33814
 
