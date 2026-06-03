@@ -1,5 +1,5 @@
 [components.kernel]
-test_labels = ["kmod_load", "kernel_integration", "boot_validation", "syscall_tests"]
+tests.tests = [{ group = "kernel-tests" }]
 
 # Manual release calculation required because the spec uses %{specrelease} macro
 # Release: %{pkg_release}

@@ -22,7 +22,7 @@
 # `<repository>` points at azl4-dev for local builds; koji overrides
 # this for distro builds).
 #
-# Capabilities and test-suites are identical between a canonical / `-dev`
+# Capabilities and tests are identical between a canonical / `-dev`
 # pair (the variants only differ in what `-repos` package ships and,
 # for `core`, the OCI tag).
 # ============================================================================
@@ -32,13 +32,10 @@
 [images.vm-base]
 description = "VM Base Image"
 definition = { type = "kiwi", path = "vm-base/vm-base.kiwi", profile = "vm-base" }
-tests.test-suites = [
-  { name = "static-image-checks" },
-  { name = "lisa-main" },
-  { name = "lisa-xfs" },
-  { name = "lisa-perf" },
-  { name = "lisa-smoke" },
-  { name = "lisa-kernel-ltp" },
+tests.tests = [
+    { name = "static-image-checks" },
+    { group = "vm-base-functional" },
+    { group = "vm-base-performance" },
 ]
 
 [images.vm-base.capabilities]
@@ -47,25 +44,13 @@ container = false
 systemd = true
 runtime-package-management = true
 
-[images.vm-base.test-workflows]
-# Test labels selected per validation tier. Labels are declared in
-# base/tests/framework-labels.toml. Capability gating is applied by the
-# resolver: labels whose `requires_capabilities` are not satisfied by
-# this image's `[images.vm-base.capabilities]` block are skipped.
-pr_validation      = ["openqa_install_smoke", "tmt_tier0", "lisa_priority0", "lisa_smoke"]
-nightly_validation = ["lisa_priority1", "lisa_priority2", "lisa_ltp", "lisa_xfs", "lisa_perf"]
-release_validation = ["tmt_tier2", "lisa_priority2", "openqa_install_comprehensive", "security_tests", "compatibility_tests"]
-
 [images.vm-base-dev]
 description = "VM Base Image (dev)"
 definition = { type = "kiwi", path = "vm-base/vm-base.kiwi", profile = "vm-base-dev" }
-tests.test-suites = [
-  { name = "static-image-checks" },
-  { name = "lisa-main" },
-  { name = "lisa-xfs" },
-  { name = "lisa-perf" },
-  { name = "lisa-smoke" },
-  { name = "lisa-kernel-ltp" },
+tests.tests = [
+    { name = "static-image-checks" },
+    { group = "vm-base-functional" },
+    { group = "vm-base-performance" },
 ]
 
 [images.vm-base-dev.capabilities]
@@ -74,16 +59,11 @@ container = false
 systemd = true
 runtime-package-management = true
 
-[images.vm-base-dev.test-workflows]
-pr_validation      = ["openqa_install_smoke", "tmt_tier0", "lisa_priority0", "lisa_smoke"]
-nightly_validation = ["lisa_priority1", "lisa_priority2", "lisa_ltp", "lisa_xfs", "lisa_perf"]
-release_validation = ["tmt_tier2", "lisa_priority2", "openqa_install_comprehensive", "security_tests", "compatibility_tests"]
-
 # ---- container-base (core profile) -------------------------------------
 [images.container-base]
 description = "Container Base Image"
 definition = { type = "kiwi", path = "container-base/container-base.kiwi", profile = "core" }
-tests.test-suites = [
+tests.tests = [
     { name = "static-image-checks" },
     { name = "runtime-container-tests" },
 ]
@@ -94,15 +74,10 @@ container = true
 systemd = false
 runtime-package-management = true
 
-[images.container-base.test-workflows]
-pr_validation      = ["container_smoke", "base_container_validation", "pytest_container_static"]
-nightly_validation = ["container_runtime_full", "oci_compliance", "registry_integration", "pytest_container_static", "pytest_container_runtime"]
-release_validation = ["container_security_scan", "oci_security", "distroless_validation", "pytest_container_release"]
-
 [images.container-base-dev]
 description = "Container Base Image (dev)"
 definition = { type = "kiwi", path = "container-base/container-base.kiwi", profile = "core-dev" }
-tests.test-suites = [
+tests.tests = [
     { name = "static-image-checks" },
     { name = "runtime-container-tests" },
 ]
@@ -113,11 +88,6 @@ container = true
 systemd = false
 runtime-package-management = true
 
-[images.container-base-dev.test-workflows]
-pr_validation      = ["container_smoke", "base_container_validation", "pytest_container_static"]
-nightly_validation = ["container_runtime_full", "oci_compliance", "registry_integration", "pytest_container_static", "pytest_container_runtime"]
-release_validation = ["container_security_scan", "oci_security", "distroless_validation", "pytest_container_release"]
-
 # ---- distroless containers (single-variant only) -----------------------
 # No -dev sibling: with a single build-time repo and no runtime package
 # management, a -dev distroless build would be byte-identical.
@@ -126,22 +96,13 @@ release_validation = ["container_security_scan", "oci_security", "distroless_val
 description = "Container Distroless Minimal Image"
 definition = { type = "kiwi", path = "container-base/container-base.kiwi", profile = "distroless-minimal" }
 
-[images.container-distroless-minimal.test-workflows]
-release_validation = ["minimal_surface_tests", "security_surface", "static_analysis"]
-
 [images.container-distroless-base]
 description = "Container Distroless Base Image"
 definition = { type = "kiwi", path = "container-base/container-base.kiwi", profile = "distroless-base" }
 
-[images.container-distroless-base.test-workflows]
-release_validation = ["minimal_surface_tests", "distroless_validation", "static_analysis"]
-
 [images.container-distroless-debug]
 description = "Container Distroless Debug Image"
 definition = { type = "kiwi", path = "container-base/container-base.kiwi", profile = "distroless-debug" }
-
-[images.container-distroless-debug.test-workflows]
-release_validation = ["minimal_surface_tests", "distroless_validation", "static_analysis"]
 
 # ---- wsl ---------------------------------------------------------------
 
@@ -162,67 +123,3 @@ definition = { type = "kiwi", path = "vm-iso-installer/vm-iso-installer.kiwi", p
 [images.vm-iso-installer-dev]
 description = "VM ISO Installer (dev)"
 definition = { type = "kiwi", path = "vm-iso-installer/vm-iso-installer.kiwi", profile = "vm-iso-installer-dev" }
-
-# ============================================================================
-# Test suites
-# ============================================================================
-
-[test-suites.lisa-main]
-type = "lisa"
-description = "Lisa tests which are run by default"
-
-[test-suites.lisa-xfs]
-type = "lisa"
-description = "Lisa xfs tests"
-
-[test-suites.lisa-perf]
-type = "lisa"
-description = "Lisa perf tests"
-
-[test-suites.lisa-smoke]
-type = "lisa"
-description = "Lisa smoke tests"
-
-[test-suites.lisa-cvm]
-type = "lisa"
-description = "Lisa cvm tests"
-
-[test-suites.lisa-kernel-ltp]
-type = "lisa"
-description = "Lisa kernel LTP tests"
-
-# Single shared pytest suite for static (offline) image validation.
-[test-suites.static-image-checks]
-type = "pytest"
-description = "Offline image validation (shared + image-specific tests)"
-
-[test-suites.static-image-checks.pytest]
-working-dir = "tests"
-install = "pyproject"
-test-paths = ["cases/static/"]
-# {capabilities} is substituted by azldev as a comma-separated list of
-# the names of capabilities set to `true` for the image (e.g.
-# "machine-bootable,systemd,runtime-package-management"). Names use
-# the same dash-case form declared above. The pytest plugin parses
-# this string into a set; @pytest.mark.require_capability("...") tests
-# that don't match are skipped.
-extra-args = [
-    "--image-path", "{image-path}",
-    "--image-name", "{image-name}",
-    "--capabilities", "{capabilities}",
-]
-
-# Runtime container tests — validate live container behavior via podman.
-[test-suites.runtime-container-tests]
-type = "pytest"
-description = "Runtime container validation (exec into live containers)"
-
-[test-suites.runtime-container-tests.pytest]
-working-dir = "tests"
-install = "pyproject"
-test-paths = ["cases/runtime/"]
-extra-args = [
-    "--image-path", "{image-path}",
-    "--image-name", "{image-name}",
-    "--capabilities", "{capabilities}",
-]

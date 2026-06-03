@@ -1,5 +1,4 @@
 [components.systemd]
-test_labels = ["systemd_lifecycle", "service_management", "systemd_integration", "journal_validation"]
 
 # AZL's setup package is 2.15.0-1, but upstream Fedora 41+ systemd requires >= 2.15.0-3.
 # Lower the version threshold to match what's available in AZL.
