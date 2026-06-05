@@ -23,7 +23,7 @@
 #
 # Declarative metadata on [tests.X]:
 #   description           : human-readable summary
-#   type                  : "pytest" | "tmt" | "lisa" | "openqa" | "pending"
+#   type                  : "pytest" | "tmt" | "lisa"
 #   kind                  : ["functional"] | ["performance"] | both
 #   long-running          : boolean; omit unless the test may run for hours
 #   required-capabilities : capability tokens the image must declare
@@ -78,10 +78,11 @@ extra-args = [
 
 [tests.smoke_test]
 type                  = "lisa"
-description           = "LISA smoke test — fastest PR gate"
+description           = "LISA smoke test — fastest PR gate (pinned)"
 kind                  = ["functional"]
 required-capabilities = ["machine-bootable"]
 [tests.smoke_test.lisa]
+source   = { git-url = "https://github.com/microsoft/lisa.git", ref = "20260330.1" }
 criteria = { testcaseNames = ["smoke_test"] }
 
 [tests.functional_core]
@@ -141,11 +142,11 @@ criteria = [
 [test-groups.vm-base-functional]
 description = "Functional coverage for VM base images"
 tests = [
-  "smoke_test",
-  "functional_core",
-  "functional_extended",
-  "kernel_ltp",
-  "xfs_filesystem",
+  { name = "smoke_test" },
+  { name = "functional_core" },
+  { name = "functional_extended" },
+  { name = "kernel_ltp" },
+  { name = "xfs_filesystem" },
 ]
 
 # Performance-oriented coverage. Kept as a separate group because
@@ -154,5 +155,5 @@ tests = [
 [test-groups.vm-base-performance]
 description = "Performance coverage for VM base images"
 tests = [
-  "lisa_perf",
+  { name = "lisa_perf" },
 ]
