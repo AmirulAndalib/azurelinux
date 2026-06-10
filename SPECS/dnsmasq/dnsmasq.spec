@@ -1,7 +1,7 @@
 Summary:        DNS proxy with integrated DHCP server
 Name:           dnsmasq
 Version:        2.92
-Release:        1%{?dist}
+Release:        2%{?dist}
 License:        GPLv2 or GPLv3
 Group:          System Environment/Daemons
 URL:            https://www.thekelleys.org.uk/dnsmasq/
@@ -67,11 +67,15 @@ EOF
 %exclude %{_libdir}/debug
 %{_sbindir}/*
 %{_mandir}/*
-%{_sysconfdir}/*
+%config(noreplace) %{_sysconfdir}/dnsmasq.conf
+%dir %{_sysconfdir}/*
 %dir %{_sharedstatedir}
 %config  /usr/share/dnsmasq/trust-anchors.conf
 
 %changelog
+* Wed Jun 10 2026 Muhmammad Falak <mwani@microsft.com> - 2.92-2
+- Tag dnsmasq.conf as a %config(noreplace)
+
 * Fri May 22 2026 Kanishk Bansal <kanbansal@microsoft.com> - 2.92-1
 - Upgrade to 2.92
 - Patch CVE-2026-2291, CVE-2026-4890, CVE-2026-4891, CVE-2026-4892, CVE-2026-4893, CVE-2026-5172
