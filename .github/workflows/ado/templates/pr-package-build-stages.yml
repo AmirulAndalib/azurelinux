@@ -1,0 +1,265 @@
+# Microsoft Corporation
+#
+# *** TEMPORARY / STOPGAP PIPELINE ***
+#
+# Raw stages template for the PR package-build check. OneBranch-agnostic:
+# declares the stages/jobs/steps and exposes the OneBranch-coupled knobs as
+# parameters. The wrapper at .github/workflows/ado/pr-package-build.yml supplies
+# concrete values. See that wrapper for why this pipeline exists.
+#
+# What it does, per PR:
+#   1. Ensure full git history (rpmautospec + change detection need it).
+#   2. Install azldev on the host (for change detection) and build the
+#      azldev-runner container (azldev + mock) used for the build itself.
+#   3. Resolve the PR commit range from the merge commit's parents
+#      (^1 = target-branch tip, ^2 = PR head).
+#   4. Compute the changed-component set (shared compute_change_set.sh).
+#   5. `azldev component build` those components INSIDE the container (mock
+#      hangs when run directly on the OneBranch host), chain-publishing to a
+#      local repo so intra-set dependencies resolve. Any build failure fails
+#      the check; the per-component build logs are dumped on failure.
+#
+# It deliberately does NOT reuse templates/steps/common-steps.yml: that shared
+# step set resolves the commit range via the *previous CI build* (the
+# post-merge delta logic), which is wrong for a PR. A PR range comes from the
+# merge commit's parents, computed inline below. Reusing common-steps would
+# also pull in the lock/render verify steps (already covered by the GitHub
+# Actions PR gates) and force a refactor of a file shared by two production
+# pipelines — out of scope for a temporary stopgap.
+#
+# This pipeline calls no Azure resource and no Control Tower API, so it needs no
+# service connection and no variable group.
+
+parameters:
+  - name: outputDirectory
+    type: string
+  - name: artifactBaseName
+    type: string
+  - name: containerImage
+    type: string
+  - name: poolType
+    type: string
+    default: linux
+  - name: timeoutInMinutes
+    type: number
+
+stages:
+  - stage: PRPackageBuild
+    jobs:
+      - job: PRPackageBuild
+        # Fail-loud: any failing component build turns the PR check red.
+        timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+        pool:
+          type: ${{ parameters.poolType }}
+        variables:
+          - name: ob_outputDirectory
+            value: ${{ parameters.outputDirectory }}
+          - name: ob_artifactBaseName
+            value: ${{ parameters.artifactBaseName }}
+          - name: LinuxContainerImage
+            value: ${{ parameters.containerImage }}
+        steps:
+          # Full history: `azldev component changed` tree-diffs two commits and
+          # rpmautospec derives Release/changelog from `git log`. The OneBranch
+          # checkout may be shallow (depth 1); unshallow once, up front. Never
+          # `git fetch --depth=N` afterwards — that re-shallows a full clone and
+          # silently corrupts the rpmautospec Release calculation.
+          - script: |
+              set -euo pipefail
+              if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+                echo "##[group]Fetching full git history"
+                git fetch --unshallow
+                echo "##[endgroup]"
+              fi
+            displayName: "Ensure full git history"
+
+          # azldev opens the repo with go-git, which rejects a config that
+          # declares the `worktreeconfig` extension while
+          # core.repositoryformatversion is still 0:
+          #   "core.repositoryformatversion does not support extension: worktreeconfig"
+          # Native git tolerates this, and the ADO agent checkout leaves the
+          # extension set, so strip it before any azldev invocation. Each CI run
+          # is a fresh checkout so this is safe and self-contained.
+          # TODO: remove this step once azldev no longer needs the workaround
+          # (go-git v6 fixes the underlying bug):
+          # https://github.com/microsoft/azure-linux-dev-tools/issues/241
+          - script: |
+              set -euo pipefail
+              if git config --get extensions.worktreeConfig >/dev/null 2>&1; then
+                echo "Removing extensions.worktreeConfig so go-git (azldev) can open the repo"
+                git config --unset-all extensions.worktreeConfig || true
+              fi
+            displayName: "Normalize git config for azldev (go-git)"
+
+          # Host needs azldev only for the change-set computation below
+          # (`azldev component changed` + git diff -- no mock). mock is NOT
+          # installed on the host: it hangs when run directly on the OneBranch
+          # agent, so the actual build runs inside the azldev-runner container
+          # (built in the next step), mirroring the GitHub Actions render gate.
+          - script: |
+              set -euo pipefail
+              echo "##[group]Azldev (host, for change-set)"
+              AZLDEV_VERSION=$(cat .azldev-version)
+              echo "Installing azldev@${AZLDEV_VERSION}..."
+              go install "github.com/microsoft/azure-linux-dev-tools/cmd/azldev@${AZLDEV_VERSION}"
+
+              go_bin_path="$(go env GOPATH)/bin"
+              echo "##vso[task.prependpath]$go_bin_path"
+
+              "$go_bin_path/azldev" --version
+              echo "##[endgroup]"
+            displayName: "Install host dependencies"
+
+          # Build the azldev-runner image (azldev + mock baked in, runs as the
+          # non-root `builduser`). Same image + Dockerfile the GitHub Actions
+          # render gate uses; mock runs reliably inside it once the privileged
+          # knobs are applied at `docker run` time (see the build step below).
+          # UID is left at the Dockerfile default (1000): the OneBranch agent
+          # runs as root, so we cannot pass `--build-arg UID=$(id -u)` (that is
+          # 0, and `useradd -u 0 builduser` collides with the existing root
+          # user); instead the build step chowns the writable dirs to 1000.
+          # The Dockerfile runs `go install azldev` at image-build time, so it
+          # needs Go module egress. Forward the host's GOPROXY into the image
+          # build: on OneBranch the `internalModuleProxy` feature flag points
+          # the host's Go at the internal proxy and `go env GOPROXY` surfaces
+          # it. Off OneBranch this is just the public default (harmless); an
+          # empty value is treated by Go as "use the default" (see Dockerfile).
+          - script: |
+              set -euo pipefail
+              echo "##[group]Build azldev-runner container"
+              docker build \
+                --build-arg UID=1000 \
+                --build-arg GOPROXY="$(go env GOPROXY)" \
+                --build-arg AZLDEV_VERSION="$(cat .azldev-version)" \
+                -t localhost/azldev-runner \
+                -f .github/workflows/containers/azldev-runner.Dockerfile \
+                .github/workflows/containers/
+              echo "##[endgroup]"
+            displayName: "Build azldev runner container"
+
+          # Resolve the PR commit range. A PR-policy build checks out the MERGE
+          # commit (Build.SourceVersion): parent ^1 is the target-branch tip,
+          # parent ^2 is the PR head. The diff ^1..^2 is exactly the PR's
+          # changes relative to the target branch. We read the range here and
+          # set pipeline variables so the wiring stays visible in the YAML.
+          - script: |
+              set -euo pipefail
+              if ! git rev-parse --verify -q "HEAD^2" >/dev/null; then
+                echo "##[error]HEAD is not a merge commit -- this pipeline must run as a PR build (Build.Reason=PullRequest)."
+                exit 1
+              fi
+              target_commit="$(git rev-parse HEAD^1)"
+              source_commit="$(git rev-parse HEAD^2)"
+              # PR-supplied data is untrusted: validate both SHAs before use.
+              for sha in "$target_commit" "$source_commit"; do
+                if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+                  echo "##[error]invalid commit SHA: $sha"
+                  exit 1
+                fi
+              done
+              echo "Resolved range: target=$target_commit source=$source_commit"
+              echo "##vso[task.setvariable variable=sourceCommit]$source_commit"
+              echo "##vso[task.setvariable variable=targetCommit]$target_commit"
+            displayName: "Determine PR commit range"
+
+          # Compute the changed-component set with the shared, cross-pipeline
+          # single-source-of-truth helper (also used by the GitHub Actions PR
+          # gates). render-set.txt = component names that changed or had
+          # hand-edited specs, minus deleted. compute_change_set.sh hard-fails
+          # on the supply-chain drift tripwire (sourcesChange without an
+          # identity change) -- a guard we want to keep on PRs. The script
+          # self-prefixes AZLDEV_ALLOW_ROOT=1 internally.
+          - script: |
+              set -euo pipefail
+              change_set_dir="$(Build.ArtifactStagingDirectory)/change-set"
+              echo "##[group]Preparing change set"
+              scripts/ci/components/compute_change_set.sh \
+                --output-dir "$change_set_dir" \
+                --source-commit "$(sourceCommit)" \
+                --target-commit "$(targetCommit)"
+              echo "##[endgroup]"
+              echo "##vso[task.setvariable variable=renderSetFile;isreadonly=true]$change_set_dir/render-set.txt"
+            displayName: "Prepare change set"
+
+          # Build the changed components INSIDE the azldev-runner container.
+          # --local-repo-with-publish stages each built RPM into a local repo so
+          # later components in the set resolve against earlier ones (intra-PR
+          # dependency chains). -v streams build progress; per-component build
+          # logs are dumped by the next step (condition: failed()) on failure.
+          - script: |
+              set -euo pipefail
+              render_set="$(renderSetFile)"
+              if [[ ! -s "$render_set" ]]; then
+                echo "No changed components -- nothing to build."
+                exit 0
+              fi
+
+              mapfile -t comps < "$render_set"
+              echo "##[group]Components to build (${#comps[@]})"
+              printf '  - %s\n' "${comps[@]}"
+              echo "##[endgroup]"
+
+              build_args=()
+              for c in "${comps[@]}"; do
+                build_args+=(-p "$c")
+              done
+
+              # base/out (local publish repo) and base/build (work + logs) are
+              # the only paths azldev writes during a build. The container runs
+              # as the non-root builduser (UID 1000); the OneBranch agent runs
+              # as root, so pre-create and hand those dirs to 1000 before the
+              # bind-mount, otherwise the in-container user cannot write to
+              # them. Everything else under the repo is read-only and
+              # world-readable (specs, comps, .git for rpmautospec).
+              mkdir -p base/out base/build
+              chown -R 1000:1000 base/out base/build
+
+              # mock hangs on the OneBranch host directly; the container gives
+              # it the isolation knobs it needs (identical to the GitHub render
+              # gate):
+              #   --cap-add=SYS_ADMIN  mount namespaces for the build chroot
+              #   seccomp=unconfined   mock uses syscalls the default profile blocks
+              #   apparmor=unconfined  default profile blocks `mount -t tmpfs`
+              #                        under /var/lib/mock even with SYS_ADMIN
+              # We avoid --privileged (broader blast radius). Component names are
+              # passed as positional args ("$@"), never interpolated into the
+              # script body, so a hostile name cannot inject shell. No
+              # AZLDEV_ALLOW_ROOT inside -- builduser is non-root.
+              echo "##[group]Building ${#comps[@]} component(s)"
+              docker run --rm \
+                --cap-add=SYS_ADMIN \
+                --security-opt seccomp=unconfined \
+                --security-opt apparmor=unconfined \
+                -v "$PWD:/workdir" \
+                localhost/azldev-runner \
+                bash -eu -o pipefail -c '
+                  # /workdir (the PR checkout) is owned by root -- the agent
+                  # runs as root -- but this container runs as builduser (uid
+                  # 1000), so git refuses to read .git ("detected dubious
+                  # ownership") when azldev shells out for rpmautospec synthetic
+                  # history. Mark it safe for builduser. (The GitHub render gate
+                  # sidesteps this by building the image with UID=$(id -u) so the
+                  # uids match; here the host is root and we cannot useradd uid
+                  # 0, so we reconcile with safe.directory instead.) Scoped to
+                  # /workdir, not "*", and the container is disposable.
+                  git config --global --add safe.directory /workdir
+                  azldev component build -v --local-repo-with-publish ./base/out "$@"
+                ' bash "${build_args[@]}"
+              echo "##[endgroup]"
+            displayName: "Build changed components (containerized)"
+
+          # Dump the per-component build logs only when the build step failed.
+          # The logs are written to base/build/logs on the host via the bind
+          # mount, so they survive the container exiting. condition: failed()
+          # is the native ADO replacement for an EXIT trap around the build.
+          - script: |
+              set -euo pipefail
+              find base/build/logs -type f -name '*.log' -print0 2>/dev/null \
+                | sort -z \
+                | while IFS= read -r -d '' log; do
+                    echo "##[group]$log"
+                    cat "$log"
+                    echo "##[endgroup]"
+                  done
+            displayName: "Dump build logs"
+            condition: failed()
