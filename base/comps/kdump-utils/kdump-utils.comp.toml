@@ -5,3 +5,8 @@
 description = "Use only first match in _find_kernel_path_by_release()"
 type = "patch-add"
 source = "kdumpctl-Use-only-first-match-in-_find_kernel_path_b.patch"
+
+[components.kdump-utils.overlays.metadata]
+category = "backport-dist-git"
+commits = ["https://github.com/rhkdump/kdump-utils/commit/c999bac950b817d229549d57f592980f4dc1655b"]
+pr = "https://github.com/rhkdump/kdump-utils/pull/153"

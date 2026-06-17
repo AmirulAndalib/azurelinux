@@ -7,14 +7,12 @@
 # openjdk21 subpackages would otherwise have unsatisfiable deps.
 
 [metadata]
-category = "backport-fedora"
+category = "backport-dist-git"
 commits = [
     "https://src.fedoraproject.org/rpms/javapackages-tools/c/62dfe8f",
     "https://src.fedoraproject.org/rpms/javapackages-tools/c/7debb9d",
     "https://src.fedoraproject.org/rpms/javapackages-tools/c/83cd9c8",
 ]
-fixed-in = "javapackages-tools-6.4.1-10.fc44"
-removable-after = "f44"
 
 # --- Remove maven-local-openjdk21 subpackage (upstream 62dfe8f) ---
 

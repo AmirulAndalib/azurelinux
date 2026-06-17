@@ -1,8 +1,6 @@
 [metadata]
-category = "backport-fedora"
+category = "backport-dist-git"
 commits = ["https://src.fedoraproject.org/rpms/cpio/c/84d5a4fe965609681000fd3911b7246c2a6973fb"]
-fixed-in = "cpio-2.15-9.fc44"
-removable-after = "f44"
 
 # Drops cpio's BR on `rmt` plus the matching %install cleanup line. Removing
 # this dep makes the `star` component (sole provider of `rmt`) unnecessary.

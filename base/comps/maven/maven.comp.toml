@@ -13,7 +13,5 @@ regex = '.*openjdk21.*'
 replacement = ''
 
 [components.maven.overlays.metadata]
-category = "backport-fedora"
+category = "backport-dist-git"
 commits = ["https://src.fedoraproject.org/rpms/maven/c/e19767f"]
-fixed-in = "maven-3.9.11-11.fc44"
-removable-after = "f44"

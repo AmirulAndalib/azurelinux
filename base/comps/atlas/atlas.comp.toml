@@ -13,8 +13,6 @@ regex = 'liblapack_pic\.a'
 replacement = "liblapack.a"
 
 [components.atlas.overlays.metadata]
-category = "backport-fedora"
+category = "backport-dist-git"
 commits = ["https://src.fedoraproject.org/rpms/atlas/c/f253f3a2d6c1"]
-fixed-in = "atlas-3.10.3-33.fc45"
-removable-after = "f45"
 bug = ["https://bugzilla.redhat.com/show_bug.cgi?id=2433875"]

@@ -13,7 +13,5 @@ regex = '.*openjdk21.*'
 replacement = ''
 
 [components.xmvn5.overlays.metadata]
-category = "backport-fedora"
+category = "backport-dist-git"
 commits = ["https://src.fedoraproject.org/rpms/xmvn5/c/b9afca4"]
-fixed-in = "xmvn5-5.1.0-9.fc44"
-removable-after = "f44"

@@ -21,3 +21,8 @@ value = "gdm-pam-extensions-devel"
 description = "Fix platform.m4 sourcing /etc/os-release overwriting VERSION shell variable, which breaks @VERSION@ substitutions in .in files"
 type = "patch-add"
 source = "fix-platform-m4-version-overwrite.patch"
+
+[components.sssd.overlays.metadata]
+category = "backport-dist-git"
+commits = ["https://github.com/SSSD/sssd/commit/0b54224353c95305cf58a587c6f2963843d4a76d"]
+pr = "https://github.com/SSSD/sssd/pull/8397"

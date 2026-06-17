@@ -23,3 +23,10 @@
 description = "Enable dlwrap clang-runtime feature to fix libclang loading panic caused by Cargo feature unification with bindgen"
 type = "patch-add"
 source = "enable-dlwrap-clang-runtime.patch"
+
+[components.rust-podman-sequoia.overlays.metadata]
+category = "backport-dist-git"
+commits = [
+    "https://github.com/ueno/podman-sequoia/commit/9bedf62e6d538c1c28b7e7fbece0113c5a151d18",
+    "https://src.fedoraproject.org/rpms/rust-podman-sequoia/c/7f0694fa51b07b8d1f2cb839f685365731306a1b",
+]

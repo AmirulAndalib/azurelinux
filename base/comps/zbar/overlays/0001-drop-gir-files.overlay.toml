@@ -7,10 +7,8 @@
 # fail when g-ir-scanner isn't present.
 
 [metadata]
-category = "backport-fedora"
+category = "backport-dist-git"
 commits = ["https://src.fedoraproject.org/rpms/zbar/c/a1e97927fd862a8ca777462155b54c4ee4176923"]
-fixed-in = "zbar-0.23.93-10.fc44"
-removable-after = "f44"
 
 [[overlays]]
 description = "Remove GIR typelib entries from zbar-gtk %files (g-ir-scanner not available, aligns with Fedora rawhide)"

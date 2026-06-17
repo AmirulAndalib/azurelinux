@@ -1,0 +1,17 @@
+# Workaround CPE parsing bug in cloud-init 25.2.
+# This does not need upstreaming because upstream has already removed the
+# problematic code path.
+[metadata]
+category = "azl-branding-policy"
+
+[[overlays]]
+description = "Workaround CPE parsing bug in cloud-init 25.2"
+type = "spec-add-tag"
+tag = "Patch"
+value = "fix-avoid-incorrect-CPE-parsing-on-Azure-Linux.patch"
+
+[[overlays]]
+description = "Add the CPE parsing bug fix patch file"
+type = "file-add"
+source = "../fix-avoid-incorrect-CPE-parsing-on-Azure-Linux.patch"
+file = "fix-avoid-incorrect-CPE-parsing-on-Azure-Linux.patch"

@@ -9,3 +9,7 @@ description = "Apply patch to fix ARM64 static check compile failure"
 type = "patch-add"
 file = "xsimd-sve-fix.patch"
 source = "xsimd-sve-fix.patch"
+
+[components.xsimd.overlays.metadata]
+category = "backport-dist-git"
+commits = ["https://github.com/xtensor-stack/xsimd/commit/0fd437f74d834a6ac97024b2edb1fa6088813499"]

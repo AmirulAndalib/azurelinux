@@ -14,8 +14,16 @@ type = "spec-search-replace"
 regex = "Patch:          %.name.-libdir.diff"
 replacement = "Patch0: %{name}-libdir.diff\nPatch1: 0001-Fix-race-in-Makefile.in.patch"
 
+[components.vamp-plugin-sdk.overlays.metadata]
+category = "backport-dist-git"
+commits = ["https://github.com/c4dm/vamp-plugin-sdk/commit/da2d66f570b14b62c5ad5a5c9de38f024ac4e217"]
+
 [[components.vamp-plugin-sdk.overlays]]
 description = "Add Makefile.in patch to fix make race"
 type = "file-add"
 file = "0001-Fix-race-in-Makefile.in.patch"
 source = "0001-Fix-race-in-Makefile.in.patch"
+
+[components.vamp-plugin-sdk.overlays.metadata]
+category = "backport-dist-git"
+commits = ["https://github.com/c4dm/vamp-plugin-sdk/commit/da2d66f570b14b62c5ad5a5c9de38f024ac4e217"]
